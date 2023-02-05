@@ -86,7 +86,7 @@ function App() {
       getRelayList()
     }
     
-  }, [pubkey])
+  }, [pubkey, mostRecentKind3])
 
   const selectRelays = () => {
     let relayUrls = prompt("Enter a list of comma separated relay URLs")
