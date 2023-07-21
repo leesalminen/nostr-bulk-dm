@@ -16,54 +16,60 @@ function LoggedIn({ myPubkey }) {
 			return
 		}
 
-		const mapData = await Promise.all(data.data.map(async (arr) => {
-			let pubkey = arr[0].toLowerCase()
-			let message = arr[1]
-			let encryptedMessage = ''
-			let errors = []
-			let event = {}
-			let signedEvent = {}
+		let mapData = []
 
-			if(pubkey.indexOf('npub') === 0) {
-				try {
-					let {type, data} = nip19.decode(pubkey)
-					if(type === 'npub') {
-						pubkey = data
-					} else {
-						errors.push('invalid pubkey provided')
+		const execute = async () => {
+			for (let arr of data.data) {
+				let pubkey = arr[0].toLowerCase()
+				let message = arr[1]
+				let encryptedMessage = ''
+				let errors = []
+				let event = {}
+				let signedEvent = {}
+
+				if(pubkey.indexOf('npub') === 0) {
+					try {
+						let {type, data} = nip19.decode(pubkey)
+						if(type === 'npub') {
+							pubkey = data
+						} else {
+							errors.push('invalid pubkey provided')
+						}
+					} catch (e) {
+						errors.push(e.toString())
 					}
-				} catch (e) {
-					errors.push(e.toString())
+				} else {
+					if(pubkey.length !== 64) {
+						errors.push('invalid pubkey length')
+					}
 				}
-			} else {
-				if(pubkey.length !== 64) {
-					errors.push('invalid pubkey length')
-				}
-			}
 
-			if(!errors.length) {
-				encryptedMessage = await window.nostr.nip04.encrypt(pubkey, message)
+				if(!errors.length) {
+					encryptedMessage = await window.nostr.nip04.encrypt(pubkey, message)
 
-				event = {
-				  kind: 4,
-				  pubkey: myPubkey,
-				  created_at: dateToUnix(),
-				  tags: [['p', pubkey]],
-				  content: encryptedMessage,
+					event = {
+					  kind: 4,
+					  pubkey: myPubkey,
+					  created_at: dateToUnix(),
+					  tags: [['p', pubkey]],
+					  content: encryptedMessage,
+					}
+					event.id = getEventHash(event)
+					
+					signedEvent = await window.nostr.signEvent(event)
 				}
-				event.id = getEventHash(event)
 				
-				signedEvent = await window.nostr.signEvent(event)
+				mapData.push({
+					pubkey: pubkey,
+					message: message,
+					encryptedMessage: encryptedMessage,
+					errors: errors,
+					signedEvent: signedEvent,
+				})
 			}
-			
-			return {
-				pubkey: pubkey,
-				message: message,
-				encryptedMessage: encryptedMessage,
-				errors: errors,
-				signedEvent: signedEvent,
-			}
-		}));
+		}
+
+		await execute()
 
 		console.log(mapData)
 
